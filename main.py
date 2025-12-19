@@ -84,7 +84,7 @@ def make_classes(rng, n_students: int, class_size_cap: int):
     classes = []
     for i in range(0, n_students, class_size_cap):
         classes.append(order[i:i+class_size_cap])
-    print("classes = ", classes)
+
     return classes
 
 def run(p: Params):
@@ -154,8 +154,12 @@ if __name__ == "__main__":
 
     last = hist[-1]
     print("Done.")
-    print(f"Day {last[0]} | K_mean={last[1]:.3f} | K_p10={last[2]:.3f} | K_p50={last[3]:.3f} | K_p90={last[4]:.3f}")
-
+    print(
+        f"Day {last[0]} | "
+        f"K_mean={last[1]:.3f} | K_p10={last[2]:.3f} | K_p50={last[3]:.3f} | K_p90={last[4]:.3f} | "
+        f"A_mean={last[5]:.3f} | A_p10={last[6]:.3f} | A_p50={last[7]:.3f} | A_p90={last[8]:.3f} | "
+        f"incidents={last[9]} | time_lost={last[10]:.3f}"
+    )
 
 
 
