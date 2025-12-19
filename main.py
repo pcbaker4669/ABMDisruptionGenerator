@@ -44,7 +44,11 @@ class Params:
     gamma_failure: float = 0.006    # how much A decreases on failure
     success_eps: float = 1e-6       # what counts as "success" in dK
 
-
+# Converts any real-valued score into a probability between 0 and 1
+# (useful for incident likelihood).
+# if x is very negative => sigmoid(x) ~ 0
+# if x is 0 => sigmoid = .5
+# if x is very positive => sigmoid ~ 1
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
 
