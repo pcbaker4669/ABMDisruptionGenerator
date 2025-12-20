@@ -1,8 +1,52 @@
 from dataclasses import dataclass
 import numpy as np
+import csv
 
 # for analysis and error checking
 # https://chatgpt.com/c/6945a0a5-b57c-8328-aaec-b7c5cfef2879
+
+def write_history_csv(filename: str, history):
+    # Writes one row per day so you can plot time series and compute summary stats later
+    with open(filename, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow([
+            "day",
+            "K_mean", "K_p10", "K_p50", "K_p90",
+            "A_mean", "A_p10", "A_p50", "A_p90",
+            "incidents_total",
+            "time_lost_mean",
+        ])
+        for row in history:
+            w.writerow(row)
+
+def summarize_daily_csv(filename: str):
+    rows = []
+    with open(filename, "r", newline="", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            # convert numeric fields
+            rows.append({
+                "day": int(row["day"]),
+                "K_mean": float(row["K_mean"]),
+                "K_p10": float(row["K_p10"]),
+                "A_mean": float(row["A_mean"]),
+                "A_p10": float(row["A_p10"]),
+                "incidents_total": int(row["incidents_total"]),
+                "time_lost_mean": float(row["time_lost_mean"]),
+            })
+
+    first = rows[0]
+    last = rows[-1]
+
+    incidents_avg = sum(x["incidents_total"] for x in rows) / len(rows)
+    time_lost_avg = sum(x["time_lost_mean"] for x in rows) / len(rows)
+
+    print("Rows:", len(rows))
+    print(f"Start: K_mean={first['K_mean']:.3f}, A_mean={first['A_mean']:.3f}")
+    print(f"End:   K_mean={last['K_mean']:.3f}, K_p10={last['K_p10']:.3f}, "
+          f"A_mean={last['A_mean']:.3f}, A_p10={last['A_p10']:.3f}")
+    print(f"Avg incidents/day: {incidents_avg:.2f}")
+    print(f"Avg time lost/day: {time_lost_avg:.3f}")
 
 @dataclass
 class Params:
@@ -156,15 +200,11 @@ if __name__ == "__main__":
     p = Params()
     hist = run(p)
 
+    write_history_csv("daily.csv", hist)
+
     last = hist[-1]
     print("Done.")
-    print(
-        f"Day {last[0]} | "
-        f"K_mean={last[1]:.3f} | K_p10={last[2]:.3f} | K_p50={last[3]:.3f} | K_p90={last[4]:.3f} | "
-        f"A_mean={last[5]:.3f} | A_p10={last[6]:.3f} | A_p50={last[7]:.3f} | A_p90={last[8]:.3f} | "
-        f"incidents={last[9]} | time_lost={last[10]:.3f}"
-    )
-
+    summarize_daily_csv("daily.csv")
 
 
 
