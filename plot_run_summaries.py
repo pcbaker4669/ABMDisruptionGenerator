@@ -41,7 +41,7 @@ def journal_style():
 
 def save_both(fig, out_dir: Path, stem: str):
     out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_dir / f"{stem}.pdf", bbox_inches="tight")
+    # fig.savefig(out_dir / f"{stem}.pdf", bbox_inches="tight")
     fig.savefig(out_dir / f"{stem}.png", bbox_inches="tight")
     plt.close(fig)
 

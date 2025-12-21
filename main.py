@@ -1,8 +1,9 @@
-# todo: I believe students with high agency will not be apt to lose agency
-#       I believe students that don't do well will lose agency
-#       Although, prehaps agency should be mostly effected by incidents, I've
-#       seen where students with good agency lose agency in a choatic environment
-
+# todo: This model is run with middle school in mind (in the U.S.)
+#  There should be an association between agency and environment (incidents), I've
+#  seen where students with good agency lose agency in a chaotic environment
+#  I believe students with high agency will not be apt to lose agency
+#  I believe students that don't do well will lose agency
+#  Currently, agency nudges up on successes and down on failures, probably too simplistic
 
 from dataclasses import dataclass
 from dataclasses import replace
@@ -37,7 +38,7 @@ class Params:
     forgetting: float = 0.002  # daily forgetting proportional to K
 
     # Run controls
-    n_days: int = 60
+    n_days: int = 90
     seed: int = 1
 
     # Teacher skill distribution
@@ -45,12 +46,12 @@ class Params:
     teacher_skill_sd: float = 0.10
 
     # Disruption model (new in V1)
-    inc_c0: float = -2.2  # baseline (lower = fewer incidents)
-    inc_c_class: float = 0.03  # effect of class size
-    inc_c_B: float = 1.0  # effect of student behavior propensity
+    inc_c0: float = -1.7  # baseline (lower = fewer incidents): -2.2 for high school
+    inc_c_class: float = 0.05  # effect of class size: 0.03 for high school
+    inc_c_B: float = 1.0  # effect of student behavior propensity (todo: forgot)
 
-    base_loss: float = 0.03  # fraction of day lost per incident
-    max_loss: float = 0.35  # cap on time lost per class per day
+    base_loss: float = 0.04  # fraction of day lost per incident (0.03 HS)
+    max_loss: float = 0.4  # cap on time lost per class per day (0.40 HS)
 
     # Agency (new in V2)
     agency_amp_min: float = 0.5     # A=0 -> multiplier 0.5
@@ -235,15 +236,39 @@ def init_population(p: Params):
     return rng, K, A, B, skill
 
 def make_classes(rng, n_students: int, class_size_cap: int):
+    """
+      Balanced class assignment (removes tiny remainder classes).
+
+      - Uses the *minimum* number of classes needed given the cap:
+          n_classes = ceil(n_students / class_size_cap)
+      - Then spreads students as evenly as possible across those classes,
+        so class sizes differ by at most 1 student.
+
+      This prevents artifacts where one cap creates a very small class
+      (e.g., cap=28 -> 28,28,28,28,8) that boosts outcomes unrealistically.
+      """
     # random shuffle of the student indices.
     # If n_students = 5, something like: array([3, 0, 4, 1, 2])
     order = rng.permutation(n_students)
 
+    # Minimum number of classes needed so nobody exceeds the cap
+    n_classes = (n_students + class_size_cap - 1) // class_size_cap  # ceil division
+
+    # Evenly distribute students across classes
+    base_size = n_students // n_classes
+    remainder = n_students % n_classes  # first 'remainder' classes get +1 student
+
     # "classes" becomes a list of arrays; each array holds the student IDs assigned
     # to one class for today (up to class_size_cap students per class).
     classes = []
-    for i in range(0, n_students, class_size_cap):
-        classes.append(order[i:i+class_size_cap])
+    start = 0
+    for i in range(n_classes):
+        size = base_size + (1 if i < remainder else 0)
+        # Safety check: should always hold with the chosen n_classes
+        if size > class_size_cap:
+            raise ValueError(f"Balanced class size {size} exceeds cap {class_size_cap}")
+        classes.append(order[start:start + size])
+        start += size
 
     return classes
 
