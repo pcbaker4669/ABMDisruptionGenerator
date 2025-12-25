@@ -1,12 +1,5 @@
 # Notes: This model is run with middle school in mind (in the U.S.)
-#  There should be an association between agency and environment (incidents), I've
-#  seen where students with good agency lose agency in a chaotic environment
-#  I believe students with high agency will not be apt to lose agency
-#  I believe students that don't do well will lose agency
-#  Currently, agency nudges up on successes and down on failures, probably too simplistic
 
-# todo: fig2 is showing maxed agency, which is not realistic
-# still strange cutoff errors
 
 from dataclasses import dataclass
 from dataclasses import replace
@@ -26,15 +19,16 @@ import plot_run_summaries
 
 @dataclass
 class Params:
-    # population
-    n_students: int = 120
-    n_teachers: int = 6
+    # Experimental design (drivers)
+    n_classes: int = 10          # fixed number of classes
+    class_size_cap: int = 30     # treat as ACTUAL class size
 
-    # policy lever
-    class_size_cap: int = 30
+    # Derived (auto-set from n_classes and class_size_cap)
+    n_students: int = 0
+    n_teachers: int = 0
 
     # Teacher resources
-    teacher_time_budget: float = 30.0 # attention units per teacher per day
+    teacher_time_budget: float = 30.0
 
     # Learning dynamics
     alpha: float = 0.05  # Learning rate scale
@@ -42,19 +36,19 @@ class Params:
 
     # Run controls
     n_days: int = 90
-    seed: int = 1
+    seed: int = 4  # run d: 1, run c: 2, run b: 3, run a: 4
 
     # Teacher skill distribution
     teacher_skill_mean: float = 0.80
     teacher_skill_sd: float = 0.10
 
     # Disruption model (new in V1)
-    inc_c0: float = -1.7  # baseline (lower = fewer incidents): -2.2 for high school
+    inc_c0: float = -2.7  # baseline (lower = fewer incidents): -2.2 for high school
     inc_c_class: float = 0.05  # effect of class size: 0.03 for high school
-    inc_c_B: float = 1.0  # effect of student behavior propensity (todo: forgot)
+    inc_c_B: float = 1.0  # effect of student behavior propensity
 
     base_loss: float = 0.04  # fraction of day lost per incident (0.03 HS)
-    max_loss: float = 0.4  # cap on time lost per class per day (0.40 HS)
+    max_loss: float = 0.8  # cap on time lost per class per day (0.40 HS)
 
     # Agency (new in V2)
     agency_amp_min: float = 0.5     # A=0 -> multiplier 0.5
@@ -233,45 +227,25 @@ def init_population(p: Params):
     # mean 2 / 5 = .4
     B = rng.beta(2.0, 3.0, p.n_students)  # Student behavior propensity in [0,1]
 
-    # mean 2 / 4.5
-    A = rng.beta(2.0, 2.5, p.n_students)  # Student agency in [0,1]
+    # mean 2 / 5
+    A = rng.beta(2.0, 4, p.n_students)  # Student agency in [0,1]
 
     return rng, K, A, B, skill
 
-def make_classes(rng, n_students: int, class_size_cap: int):
-    """
-      Balanced class assignment (removes tiny remainder classes).
+def finalize_params(p: Params) -> Params:
+    n_students = p.n_classes * p.class_size_cap
+    n_teachers = p.n_classes  # teachers = classes
+    return replace(p, n_students=n_students, n_teachers=n_teachers)
 
-      - Uses the *minimum* number of classes needed given the cap:
-          n_classes = ceil(n_students / class_size_cap)
-      - Then spreads students as evenly as possible across those classes,
-        so class sizes differ by at most 1 student.
 
-      This prevents artifacts where one cap creates a very small class
-      (e.g., cap=28 -> 28,28,28,28,8) that boosts outcomes unrealistically.
-      """
-    # random shuffle of the student indices.
-    # If n_students = 5, something like: array([3, 0, 4, 1, 2])
+def make_classes(rng, n_students: int, class_size: int, n_classes: int):
     order = rng.permutation(n_students)
 
-    # Minimum number of classes needed so nobody exceeds the cap
-    n_classes = (n_students + class_size_cap - 1) // class_size_cap  # ceil division
-
-    # Evenly distribute students across classes
-    base_size = n_students // n_classes
-    remainder = n_students % n_classes  # first 'remainder' classes get +1 student
-
-    # "classes" becomes a list of arrays; each array holds the student IDs assigned
-    # to one class for today (up to class_size_cap students per class).
     classes = []
     start = 0
-    for i in range(n_classes):
-        size = base_size + (1 if i < remainder else 0)
-        # Safety check: should always hold with the chosen n_classes
-        if size > class_size_cap:
-            raise ValueError(f"Balanced class size {size} exceeds cap {class_size_cap}")
-        classes.append(order[start:start + size])
-        start += size
+    for _ in range(n_classes):
+        classes.append(order[start:start + class_size])
+        start += class_size
 
     return classes
 
@@ -283,7 +257,8 @@ def run(p: Params):
     for day in range(1, p.n_days + 1):
         incidents_total = 0
         time_lost_total = 0.0
-        classes = make_classes(rng, p.n_students, p.class_size_cap)
+
+        classes = make_classes(rng, p.n_students, p.class_size_cap, p.n_classes)
 
         for c_idx, cls in enumerate(classes):
             t = c_idx % p.n_teachers
@@ -313,11 +288,11 @@ def run(p: Params):
                   (1.0 - K[cls]) - p.forgetting * K[cls])
 
             # Agency update: success nudges A up, failure nudges A down
-            success = (dK > p.success_eps)
-            dA = np.where(success, p.beta_success, -p.gamma_failure)
+            # success = (dK > p.success_eps)
+            # dA = np.where(success, p.beta_success, -p.gamma_failure)
 
             K[cls] = np.clip(K[cls] + dK, 0.0, 1.0)
-            A[cls] = np.clip(A[cls] + dA, 0.0, 1.0)
+            # A[cls] = np.clip(A[cls] + dA, 0.0, 1.0)
 
         history.append((
             day,  # Day number in the simulation
@@ -401,7 +376,9 @@ if __name__ == "__main__":
             # unique seed per (cap, rep) so each replication differs
             seed = base.seed + cap * 1000 + rep
 
-            p = replace(base, class_size_cap=cap, seed=seed)
+            p0 = replace(base, class_size_cap=cap, seed=seed)
+            p = finalize_params(p0)
+
             hist = run(p)
             append_history_csv(out_file, p, hist, run_id=run_id)
 

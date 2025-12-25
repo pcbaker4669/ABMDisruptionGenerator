@@ -174,31 +174,7 @@ def run_plots():
     ax.legend(frameon=False)
     save_both(fig, out_dir, "fig1_mastery_end_vs_class_size")
 
-    # --- Figure 2: End-of-run agency (mean + band p10..p90) ---
-    A_mean = [d["A_mean_end"] for d in parsed]
-    A_mean_sd = [d["A_mean_end_sd"] for d in parsed]
-    A_mean_yerr = _yerr_from_sd(A_mean_sd, nreps, mode=err_mode)
-
-    A_p10 = [d["A_p10_end"] for d in parsed]
-    A_p50 = [d["A_p50_end"] for d in parsed]
-    A_p90 = [d["A_p90_end"] for d in parsed]
-
-    fig = plt.figure(figsize=(6.5, 4.0))
-    ax = fig.gca()
-
-    ax.fill_between(x, A_p10, A_p90, alpha=0.15, label="A band (p10..p90)")
-    ax.errorbar(x, A_mean, yerr=A_mean_yerr, fmt="o-", capsize=3, label=f"A_mean_end ({err_mode})")
-    ax.plot(x, A_p50, marker="o", linestyle="--", label="A_p50_end")
-
-    ax.set_xlabel("Class size cap (students)")
-    ax.set_ylabel("End-of-run agency (A)")
-    ax.set_title("End-of-run agency vs class size cap")
-    ax.set_xticks(x)
-    ax.grid(True, alpha=0.25)
-    ax.legend(frameon=False)
-    save_both(fig, out_dir, "fig2_agency_end_vs_class_size")
-
-    # --- Figure 3: Incidents avg/day vs class size cap (own figure) ---
+    # --- Figure 2: Incidents avg/day vs class size cap (own figure) ---
     inc = [d["incidents_avg_per_day"] for d in parsed]
     inc_sd = [d["incidents_avg_per_day_sd"] for d in parsed]
     inc_yerr = _yerr_from_sd(inc_sd, nreps, mode=err_mode)
@@ -208,13 +184,13 @@ def run_plots():
     ax.errorbar(x, inc, yerr=inc_yerr, fmt="o-", capsize=3, label=f"Incidents avg/day ({err_mode})")
     ax.set_xlabel("Class size cap (students)")
     ax.set_ylabel("Incidents avg/day")
-    ax.set_title("Incidents vs class size cap")
+    ax.set_title("Incidents vs class size")
     ax.set_xticks(x)
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
-    save_both(fig, out_dir, "fig3_incidents_vs_class_size")
+    save_both(fig, out_dir, "fig2_incidents_vs_class_size")
 
-    # --- Figure 4: time_lost_avg vs class size cap (own figure; key metric) ---
+    # --- Figure 3: time_lost_avg vs class size cap (own figure; key metric) ---
     tavg = [d["time_lost_avg"] for d in parsed]
     tavg_sd = [d["time_lost_avg_sd"] for d in parsed]
     tavg_yerr = _yerr_from_sd(tavg_sd, nreps, mode=err_mode)
@@ -234,9 +210,13 @@ def run_plots():
     ax.set_ylim(0.0, max(tmax + tavg) * 1.1 if (tmax and tavg) else 1.0)
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
-    save_both(fig, out_dir, "fig4_time_lost_vs_class_size")
+    save_both(fig, out_dir, "fig3_time_lost_vs_class_size")
 
-    # --- Figure 5: Marginal effect on mastery (Δ between adjacent caps), with CI if available ---
+    # --- Figure 4: Marginal effect on mastery (Δ between adjacent caps), with CI if available ---
+    # Marginal drop in mastery across adjacent class-size scenarios.
+    # Helps reveal nonlinear "tipping" regions where added students amplify disruption/time-loss
+    # enough that the per-step mastery penalty grows.
+
     dK = []
     dK_yerr = []
     x_mid = []
@@ -262,7 +242,7 @@ def run_plots():
     ax.set_title("Marginal change in end mastery across class-size steps")
     ax.set_xticks(x)
     ax.grid(True, alpha=0.25)
-    save_both(fig, out_dir, "fig5_marginal_dK_end_vs_class_size")
+    save_both(fig, out_dir, "fig4_marginal_dK_end_vs_class_size")
 
     print(f"Done. Wrote PDF+PNG figures to: {out_dir.resolve()}")
 
