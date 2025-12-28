@@ -58,6 +58,22 @@ class Params:
     gamma_failure: float = 0.006    # how much A decreases on failure
     success_eps: float = 1e-6       # what counts as "success" in dK
 
+@dataclass
+class StudentAgent:
+    sid: int
+    K: float  # mastery
+    A: float  # agency
+    B: float  # behavior propensity
+
+
+@dataclass
+class TeacherAgent:
+    tid: int
+    skill: float
+    time_budget: float
+
+
+
 # this is for the daily_all_runs.csv file
 OUTPUT_NAMES = [
     "K_mean", "K_p10", "K_p50", "K_p90",
@@ -212,25 +228,30 @@ def init_population(p: Params):
     # using p.seed means the simulation runs the same way every time for the same settings.
     rng = np.random.default_rng(p.seed)
 
-    # Student mastery starts low-to-mid, beta distributions are always between 0 and 1
+    # Beta distributions are always between 0 and 1
     # Mean is a / (a + b) or 2 / (2+3) = 2/5 = .4, with a "normalish" distribution
     # variance = (a*b) / ((a+b)^2 * (a + b + 1)) and std = sqrt(variance)
-    K = rng.beta(2.0, 3.0, p.n_students)
+    # Student state variables
+    K0 = rng.beta(2.0, 3.0, p.n_students)  # mastery
+    B0 = rng.beta(2.0, 3.0, p.n_students)  # behavior propensity
+    A0 = rng.beta(2.0, 4.0, p.n_students)  # agency (your updated middle-school choice)
 
-    # Draw each teacher’s skill from a normal-ish distribution with mean .8
-    # "skill" has an array or teacher skills (0, 1]
-    skill = rng.beta(16, 4, p.n_teachers)  # mean = 16/(20)=0.80, fairly tight
-    # tiny clip to ensure no teacher is exactly zero
+    students = [
+        StudentAgent(sid=i, K=float(K0[i]), A=float(A0[i]), B=float(B0[i]))
+        for i in range(p.n_students)
+    ]
+
+    # Teacher skill distribution (kept as you had it)
+    skill = rng.beta(16, 4, p.n_teachers)
     eps = 1e-6
-    skill = np.clip(skill, eps, 1-eps)
+    skill = np.clip(skill, eps, 1 - eps)
 
-    # mean 2 / 5 = .4
-    B = rng.beta(2.0, 3.0, p.n_students)  # Student behavior propensity in [0,1]
+    teachers = [
+        TeacherAgent(tid=j, skill=float(skill[j]), time_budget=float(p.teacher_time_budget))
+        for j in range(p.n_teachers)
+    ]
 
-    # mean 2 / 5
-    A = rng.beta(2.0, 4, p.n_students)  # Student agency in [0,1]
-
-    return rng, K, A, B, skill
+    return rng, students, teachers
 
 def finalize_params(p: Params) -> Params:
     n_students = p.n_classes * p.class_size_cap
@@ -250,9 +271,8 @@ def make_classes(rng, n_students: int, class_size: int, n_classes: int):
     return classes
 
 def run(p: Params):
-    rng, K, A, B, skill = init_population(p)
-
-    history = []  # (day, K_mean, K_p10, K_p50, K_p90)
+    rng, students, teachers = init_population(p)
+    history = []
 
     for day in range(1, p.n_days + 1):
         incidents_total = 0
@@ -261,54 +281,63 @@ def run(p: Params):
         classes = make_classes(rng, p.n_students, p.class_size_cap, p.n_classes)
 
         for c_idx, cls in enumerate(classes):
-            t = c_idx % p.n_teachers
+            teacher = teachers[c_idx % p.n_teachers]
             class_size = len(cls)
 
-            attention_per_student = p.teacher_time_budget / class_size
+            attention_per_student = teacher.time_budget / class_size
 
-            # incidents create time loss for the whole class
-            # Probability a student causes an incident today
-            x = p.inc_c0 + p.inc_c_class * class_size + p.inc_c_B * B[cls]
-            p_inc = sigmoid(x)
-
-            incidents = rng.random(class_size) < p_inc
-            inc_count = int(incidents.sum())
+            # --- incidents (student-level probabilities) ---
+            inc_count = 0
+            for i in cls:
+                s = students[int(i)]
+                x = p.inc_c0 + p.inc_c_class * class_size + p.inc_c_B * s.B
+                if rng.random() < sigmoid(x):
+                    inc_count += 1
 
             time_loss = min(p.max_loss, p.base_loss * inc_count)
-            time_factor = 1.0 - time_loss  # remaining usable instruction time
+            time_factor = 1.0 - time_loss
 
             incidents_total += inc_count
-            time_lost_total += time_loss * class_size  # student-weighted
+            time_lost_total += time_loss * class_size  # student-weighted, same as before
 
-            # Agency multiplier: maps A in [0,1] to [agency_amp_min, agency_amp_max]
-            agency_amp = p.agency_amp_min + (p.agency_amp_max - p.agency_amp_min) * A[cls]
+            # --- learning update (agency fixed, but still used as amplifier) ---
+            for i in cls:
+                s = students[int(i)]
 
-            # Learning is reduced when time is lost to disruption
-            dK = (p.alpha * (attention_per_student * time_factor) * skill[t] * agency_amp *
-                  (1.0 - K[cls]) - p.forgetting * K[cls])
+                agency_amp = p.agency_amp_min + (p.agency_amp_max - p.agency_amp_min) * s.A
 
-            # Agency update: success nudges A up, failure nudges A down
-            # success = (dK > p.success_eps)
-            # dA = np.where(success, p.beta_success, -p.gamma_failure)
+                dK = (
+                    p.alpha
+                    * (attention_per_student * time_factor)
+                    * teacher.skill
+                    * agency_amp
+                    * (1.0 - s.K)
+                    - p.forgetting * s.K
+                )
 
-            K[cls] = np.clip(K[cls] + dK, 0.0, 1.0)
-            # A[cls] = np.clip(A[cls] + dA, 0.0, 1.0)
+                s.K = float(np.clip(s.K + dK, 0.0, 1.0))
+                # s.A stays fixed (you already removed the update)
+
+        # --- collect stats (same outputs as before) ---
+        K_arr = np.array([s.K for s in students], dtype=float)
+        A_arr = np.array([s.A for s in students], dtype=float)
 
         history.append((
-            day,  # Day number in the simulation
-            float(K.mean()),  # Average mastery across all students
-            float(np.quantile(K, 0.10)),  # 10th percentile mastery (lower-performing tail)
-            float(np.quantile(K, 0.50)),  # Median mastery
-            float(np.quantile(K, 0.90)),  # 90th percentile mastery (upper-performing tail)
-            float(A.mean()),  # Average agency across all students
-            float(np.quantile(A, 0.10)),  # 10th percentile agency (lowest-agency tail)
-            float(np.quantile(A, 0.50)),  # Median agency
-            float(np.quantile(A, 0.90)),  # 90th percentile agency (highest-agency tail)
-            int(incidents_total),  # Total disruptive incidents across all classes today
-            float(time_lost_total / p.n_students),  # Average instructional time lost per student today
+            day,
+            float(K_arr.mean()),
+            float(np.quantile(K_arr, 0.10)),
+            float(np.quantile(K_arr, 0.50)),
+            float(np.quantile(K_arr, 0.90)),
+            float(A_arr.mean()),
+            float(np.quantile(A_arr, 0.10)),
+            float(np.quantile(A_arr, 0.50)),
+            float(np.quantile(A_arr, 0.90)),
+            int(incidents_total),
+            float(time_lost_total / p.n_students),
         ))
 
     return history
+
 
 def aggregate_run_summaries_by_cap(infile: str, outfile: str):
     """
