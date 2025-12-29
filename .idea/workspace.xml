@@ -5,11 +5,26 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3e2dcfa0-70bf-45c9-8ea6-ee9c8ebecbd2" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/8_MasteryAgency_Model_0.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/8_MasteryAgency_Model_0.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/daily_all_runs.csv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1a_class_size/fig1_mastery_end_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1a_class_size/fig2_incidents_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1a_class_size/fig3_time_lost_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1a_class_size/fig4_marginal_dK_end_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1b_class_size/fig1_mastery_end_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1b_class_size/fig2_incidents_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1b_class_size/fig3_time_lost_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1b_class_size/fig4_marginal_dK_end_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1c_class_size/fig1_mastery_end_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1c_class_size/fig2_incidents_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1c_class_size/fig3_time_lost_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1c_class_size/fig4_marginal_dK_end_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1d_class_size/fig1_mastery_end_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1d_class_size/fig2_incidents_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1d_class_size/fig3_time_lost_vs_class_size.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures_1d_class_size/fig4_marginal_dK_end_vs_class_size.png" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plot_run_summaries.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/run_summaries.csv" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/scenario_summary.csv" beforeDir="false" />
     </list>
@@ -29,24 +44,25 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;v3&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/peter/OneDrive/Documents/GMU/Dissertation/code/8_MasteryAgency_Model_0&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.main.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "ai.playground.ignore.import.keys.banner.in.settings": "true",
+    "git-widget-placeholder": "v4__visualization",
+    "last_opened_file_path": "C:/Users/peter/OneDrive/Documents/GMU/Dissertation/code/8_MasteryAgency_Model_0",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RunManager">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="8_MasteryAgency_Model_0" />
@@ -75,7 +91,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-0e3be3396995-c546a90a8094-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.23339.19" />
+        <option value="bundled-python-sdk-af26db0dccfe-c546a90a8094-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.26775.22" />
       </set>
     </attachedChunks>
   </component>
