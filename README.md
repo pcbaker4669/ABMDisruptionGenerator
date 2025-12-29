@@ -1,22 +1,5 @@
-Run with your current baseline and produce 4 strong figures:
+I’m building an agent-based model of classroom learning where the key mechanism is that a small number of students generate a large share of disruptive incidents, and those incidents reduce instructional time for everyone in the class. I want the model to be clean and publishable (ABM/JASSS style), so I’m restarting from a minimal skeleton: Params, a Student agent class, and a Model class with a day-by-day loop.
 
-Here are my goals for the base model
-mastery end vs class size
-time_lost_avg vs class size
-incidents vs class size
-insights on tipping points and non-linearities
+The immediate goal is to implement a simple, principled disruption generator that naturally produces “heavy concentration” (for example, roughly the top ~5% of students producing a large fraction of incidents) without lots of ad-hoc tuning. Each student has a fixed latent “disruption risk” drawn at initialization, and each day the model samples how many incidents each student causes in class; total incidents then translate into time lost for the class. After that works, I’ll layer back in learning: each student has mastery that increases with effective instruction time and can include forgetting.
 
-the next upgrade will be teacher teaches multiple periods + fatigue 
-(one addition at a time).
-
-note on agency: (Agency (A) = “learning conversion / self-directed engagement”)
-Agency acts like a student-level “conversion efficiency” for instruction.
-It widens gaps: high-agency students climb faster; low-agency students lag, 
-and under disruption they can stagnate or decline because forgetting isn’t reduced.
-
-If you allow A to update over time (your V2), this creates feedback: success 
-boosts A → more learning → more success; 
-failure lowers A → less learning → more failure.
-
-note on behavior: (Behavior (B) = “disruption propensity”
-
+Planned experiments: vary class size and compare outcomes using (1) total incidents per day (system load), (2) incidents per student per day (rate/risk), (3) time lost, and (4) learning outcomes (mean and distribution). I want to use the model to test how class size interacts with disruption concentration to produce inequality in learning and to evaluate “what-if” interventions later (e.g., removing or mitigating the highest-risk tail, or targeted supports).
