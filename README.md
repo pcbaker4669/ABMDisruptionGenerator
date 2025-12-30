@@ -2,4 +2,10 @@ I’m building an agent-based model of classroom learning where the key mechanis
 
 The immediate goal is to implement a simple, principled disruption generator that naturally produces “heavy concentration” (for example, roughly the top ~5% of students producing a large fraction of incidents) without lots of ad-hoc tuning. Each student has a fixed latent “disruption risk” drawn at initialization, and each day the model samples how many incidents each student causes in class; total incidents then translate into time lost for the class. After that works, I’ll layer back in learning: each student has mastery that increases with effective instruction time and can include forgetting.
 
-Planned experiments: vary class size and compare outcomes using (1) total incidents per day (system load), (2) incidents per student per day (rate/risk), (3) time lost, and (4) learning outcomes (mean and distribution). I want to use the model to test how class size interacts with disruption concentration to produce inequality in learning and to evaluate “what-if” interventions later (e.g., removing or mitigating the highest-risk tail, or targeted supports).
+Planned experiments: vary class size and compare outcomes using 
+(1) total incidents per day (system load), 
+(2) incidents per student per day (rate/risk), 
+(3) time lost, and 
+(4) learning outcomes (mean and distribution). 
+
+I want to use the model to test how class size interacts with disruption concentration to produce inequality in learning and to evaluate “what-if” interventions later (e.g., removing or mitigating the highest-risk tail, or targeted supports).
