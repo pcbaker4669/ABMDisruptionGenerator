@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import numpy as np
 import math
 import csv
+import matplotlib.pyplot as plt
 
 # ----------------------------
 # Parameters (model-specific)
@@ -270,6 +271,111 @@ def make_table1(base_params: dict, seeds=range(1, 51), out_csv="table1_baseline.
 
     return {k: (float(mu), float(sd)) for k, mu, sd in zip(keys, means, sds)}
 
+import matplotlib.pyplot as plt
+
+def share_top(x, frac):
+    x = np.asarray(x, dtype=float)
+    s = x.sum()
+    if s <= 0:
+        return 0.0
+    k = max(1, int(math.ceil(frac * len(x))))
+    return float(np.sort(x)[::-1][:k].sum() / s)
+
+def lorenz_curve(values):
+    v = np.asarray(values, dtype=float)
+    v = np.maximum(v, 0.0)
+    v_sorted = np.sort(v)
+    cum = np.cumsum(v_sorted)
+    total = cum[-1] if len(cum) else 0.0
+    if total <= 0:
+        x = np.array([0.0, 1.0])
+        y = np.array([0.0, 1.0])
+        return x, y, 0.0
+
+    x = np.concatenate([[0.0], np.arange(1, len(v_sorted) + 1) / len(v_sorted)])
+    y = np.concatenate([[0.0], cum / total])
+
+    area = np.trapezoid(y, x)
+    gini = 1.0 - 2.0 * area
+    return x, y, float(gini)
+
+def plot_lorenz_from_model(
+    base_params: dict,
+    seeds=range(1, 51),
+    out_png="fig1_lorenz_concentration.png",
+    out_pdf="fig1_lorenz_concentration.pdf",
+):
+    """
+    Runs the ABM across multiple seeds, pools student incident totals, and saves
+    a journal-quality Lorenz curve figure (PNG + PDF).
+    """
+    seeds = list(seeds)
+
+    pooled_totals = []
+    top5_shares = []
+    top1_shares = []
+
+    for sd in seeds:
+        p = Params(**{**base_params, "seed": sd})
+        m = Model(p)
+        m.run()
+        totals = np.array([s.incidents_total for s in m.students], dtype=float)
+
+        pooled_totals.append(totals)
+        top5_shares.append(share_top(totals, 0.05))
+        top1_shares.append(share_top(totals, 0.01))
+
+    pooled_totals = np.concatenate(pooled_totals)
+    x, y, gini = lorenz_curve(pooled_totals)
+
+    top5_mean = float(np.mean(top5_shares))
+    top1_mean = float(np.mean(top1_shares))
+
+    # Journal-ish matplotlib defaults (no explicit colors)
+    plt.rcParams.update({
+        "figure.dpi": 120,
+        "savefig.dpi": 300,
+        "font.size": 11,
+        "axes.titlesize": 12,
+        "axes.labelsize": 11,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "legend.fontsize": 10,
+        "lines.linewidth": 2.0,
+    })
+
+    fig = plt.figure(figsize=(6.5, 5.0))
+    ax = plt.gca()
+
+    ax.plot(x, y, label="Lorenz curve (pooled student totals)")
+    ax.plot([0, 1], [0, 1], linestyle="--", label="Equality line")
+
+    ax.set_title("Concentration of Incidents Across Students (Lorenz Curve)")
+    ax.set_xlabel("Cumulative share of students")
+    ax.set_ylabel("Cumulative share of incidents")
+
+    txt = (
+        f"Pooled over {len(seeds)} runs (N={len(pooled_totals)} student-runs)\n"
+        f"Gini = {gini:.3f}\n"
+        f"Mean top 5% share = {top5_mean:.3f}; mean top 1% share = {top1_mean:.3f}"
+    )
+    ax.text(0.05, 0.80, txt, transform=ax.transAxes)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(loc="lower right", frameon=False)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+
+    plt.tight_layout()
+    plt.savefig(out_png)
+    plt.savefig(out_pdf)
+    plt.close(fig)
+
+    print(f"Saved: {out_png}")
+    print(f"Saved: {out_pdf}")
+
+
 # ----------------------------
 # Main
 # ----------------------------
@@ -294,6 +400,13 @@ def main():
     )
     # replicate_summaries(base_params)
     make_table1(base_params, seeds=range(1, 51), out_csv="table1_baseline.csv")
+    # Figure 1: Lorenz curve (student concentration)
+    plot_lorenz_from_model(
+        base_params,
+        seeds=range(1, 51),
+        out_png="fig1_lorenz_concentration.png",
+        out_pdf="fig1_lorenz_concentration.pdf",
+    )
 
 if __name__ == "__main__":
     main()
