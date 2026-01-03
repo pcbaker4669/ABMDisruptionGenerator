@@ -271,7 +271,7 @@ def make_table1(base_params: dict, seeds=range(1, 51), out_csv="table1_baseline.
 
     return {k: (float(mu), float(sd)) for k, mu, sd in zip(keys, means, sds)}
 
-import matplotlib.pyplot as plt
+
 
 def share_top(x, frac):
     x = np.asarray(x, dtype=float)
@@ -376,6 +376,119 @@ def plot_lorenz_from_model(
     print(f"Saved: {out_pdf}")
 
 
+def plot_ccdf_class_counts(
+    base_params: dict,
+    seeds=range(1, 51),
+    out_png="fig2_ccdf_class_counts.png",
+    out_pdf="fig2_ccdf_class_counts.pdf",
+    use_log_y=True,
+):
+    """
+    Figure 2: CCDF (survival function) of class-period incident counts.
+    Pools incidents_class across all class-periods and replications.
+    Saves PNG + PDF.
+    """
+    seeds = list(seeds)
+
+    pooled_counts = []
+
+    for sd in seeds:
+        p = Params(**{**base_params, "seed": sd})
+        m = Model(p)
+        m.run()
+
+        # one count per class per day
+        counts = np.array([r["incidents_class"] for r in m.class_day_records], dtype=float)
+        pooled_counts.append(counts)
+
+    pooled_counts = np.concatenate(pooled_counts)
+    # data-driven cap (e.g., 99.5th percentile)
+    xmax = int(np.quantile(pooled_counts, 0.995))
+
+    # CCDF: P(X >= x)
+    x = np.sort(pooled_counts)
+    n = len(x)
+    y = 1.0 - (np.arange(1, n + 1) / n)  # survival
+
+    # Avoid y=0 on log scale
+    y = np.maximum(y, 1.0 / n)
+
+    # --- IMPORTANT: truncate the *plotted data* to match your x-axis truncation ---
+    mask = x <= xmax
+    x_plot = x[mask]
+    y_plot = y[mask]
+
+    # Journal-ish matplotlib defaults (same approach as Fig 1)
+    plt.rcParams.update({
+        "figure.dpi": 120,
+        "savefig.dpi": 300,
+        "font.size": 11,
+        "axes.titlesize": 12,
+        "axes.labelsize": 11,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "legend.fontsize": 10,
+        "lines.linewidth": 2.0,
+    })
+
+    fig = plt.figure(figsize=(6.5, 5.0))
+    ax = plt.gca()
+
+    ax.set_xlim(0, xmax)
+    ax.text(
+        0.62, 0.92,  # (x,y) in axes coords
+        f"x-axis truncated at {xmax} (99.5th pct)",
+        transform=ax.transAxes,
+        ha="left", va="top",
+        bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=2)
+    )
+
+    ax.step(x_plot, y_plot, where="post", label="CCDF of class-period incidents")
+    ax.set_xlim(0, xmax)
+
+    # Now set y-limits based on what you're actually plotting
+    ymin = y_plot.min()
+    y_floor = 10 ** np.floor(np.log10(ymin))  # nice decade floor (e.g., 1e-3)
+    ax.set_ylim(y_floor, 1.0)
+    ax.set_yscale("log")
+
+    ax.set_title("Class-Period Incident Counts (CCDF)")
+    ax.set_xlabel("Incidents per class-period")
+    ax.set_ylabel("P(X ≥ x)")
+
+    if use_log_y:
+        ax.set_yscale("log")
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(loc="upper right", frameon=False)
+
+    plt.tight_layout()
+    plt.savefig(out_png)
+    plt.savefig(out_pdf)
+    plt.close(fig)
+
+    print(f"Saved: {out_png}")
+    print(f"Saved: {out_pdf}")
+
+def tail_probabilities_class_counts(base_params: dict, seeds=range(1, 51), thresholds=(10, 20, 30)):
+    seeds = list(seeds)
+    pooled = []
+
+    for sd in seeds:
+        p = Params(**{**base_params, "seed": sd})
+        m = Model(p)
+        m.run()
+        pooled.append([r["incidents_class"] for r in m.class_day_records])
+
+    pooled = np.array([x for sub in pooled for x in sub], dtype=int)
+
+    print("\nTail probabilities for class-period incident counts (pooled):")
+    print(f"P(X = 0) = {(pooled == 0).mean():.3f}")
+    for t in thresholds:
+        print(f"P(X >= {t}) = {(pooled >= t).mean():.3f}")
+
+
 # ----------------------------
 # Main
 # ----------------------------
@@ -407,6 +520,17 @@ def main():
         out_png="fig1_lorenz_concentration.png",
         out_pdf="fig1_lorenz_concentration.pdf",
     )
+
+    # Figure 2
+    plot_ccdf_class_counts(
+        base_params,
+        seeds=range(1, 51),
+        out_png="fig2_ccdf_class_counts.png",
+        out_pdf="fig2_ccdf_class_counts.pdf",
+        use_log_y=True,
+    )
+
+    tail_probabilities_class_counts(base_params, seeds=range(1, 51), thresholds=(10, 20, 30))
 
 if __name__ == "__main__":
     main()
