@@ -1,4 +1,3 @@
-# https://chatgpt.com/c/69505735-7620-8329-b7e9-1458312497d8
 # model.py
 from dataclasses import dataclass
 import numpy as np
