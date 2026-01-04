@@ -271,6 +271,91 @@ def make_table1(base_params: dict, seeds=range(1, 51), out_csv="table1_baseline.
 
     return {k: (float(mu), float(sd)) for k, mu, sd in zip(keys, means, sds)}
 
+def pooled_tail_prob_class_counts(base_params: dict, seeds, threshold: int) -> float:
+    pooled = []
+    for sd in seeds:
+        p = Params(**{**base_params, "seed": sd})
+        m = Model(p)
+        m.run()
+        pooled.extend([r["incidents_class"] for r in m.class_day_records])
+    pooled = np.array(pooled, dtype=int)
+    return float((pooled >= threshold).mean())
+
+
+def sweep_one_param(base_params: dict, param_name: str, values, seeds=range(1, 51), tail_threshold=20):
+    """
+    OFAT sweep: vary one parameter, replicate across seeds, return mean±sd for key outputs.
+    """
+    values = list(values)
+    seeds = list(seeds)
+
+    rows = []
+    for v in values:
+        per_run = []
+        for sd in seeds:
+            p = Params(**{**base_params, "seed": sd, param_name: v})
+            m = Model(p)
+            m.run()
+            per_run.append(m.summary())
+        # summarize across runs (seed replications)
+        def mu_sd(key):
+            arr = np.array([r[key] for r in per_run], dtype=float)
+            return float(arr.mean()), float(arr.std(ddof=1))
+
+        out = {"param": param_name, "value": float(v)}
+        # concentration
+        out["top5_mean"], out["top5_sd"] = mu_sd("top5_share_students")
+        out["top1_mean"], out["top1_sd"] = mu_sd("top1_share_students")
+        # burstiness + level
+        out["class_mean_mean"], out["class_mean_sd"] = mu_sd("class_mean")
+        out["varmean_mean"], out["varmean_sd"] = mu_sd("class_var_mean")
+        # pooled tail probability (more stable than per-run tails)
+        out["p_tail"] = pooled_tail_prob_class_counts({**base_params, param_name: v}, seeds, tail_threshold)
+
+        rows.append(out)
+
+    return rows
+
+
+def plot_sweep(rows, x_key="value", y_key="top5_mean", yerr_key="top5_sd",
+               title="", xlabel="", ylabel="",
+               out_png="sweep.png", out_pdf="sweep.pdf"):
+    x = np.array([r[x_key] for r in rows], dtype=float)
+    y = np.array([r[y_key] for r in rows], dtype=float)
+    yerr = np.array([r[yerr_key] for r in rows], dtype=float) if yerr_key else None
+
+    plt.rcParams.update({
+        "figure.dpi": 120,
+        "savefig.dpi": 300,
+        "font.size": 11,
+        "axes.titlesize": 12,
+        "axes.labelsize": 11,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "legend.fontsize": 10,
+        "lines.linewidth": 2.0,
+    })
+
+    fig = plt.figure(figsize=(6.5, 5.0))
+    ax = plt.gca()
+
+    if yerr is not None:
+        ax.errorbar(x, y, yerr=yerr, marker="o", capsize=3)
+    else:
+        ax.plot(x, y, marker="o")
+
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    plt.tight_layout()
+    plt.savefig(out_png)
+    plt.savefig(out_pdf)
+    plt.close(fig)
+    print("Saved:", out_png, "and", out_pdf)
 
 
 def share_top(x, frac):
@@ -493,18 +578,7 @@ def tail_probabilities_class_counts(base_params: dict, seeds=range(1, 51), thres
 # Main
 # ----------------------------
 def main():
-    # original run once
-    # p = Params()
-    # m = Model(p)
-    # m.run()
-    #
-    # print("Summary:", m.summary())
-    # print("Example class-day row:", m.class_day_records[0])
-    # print("Example student row:", m.student_table()[0])
-
-    # tuning
-    # run_sweep()
-
+   
     # multiple runs with different seeds
     base_params = dict(
         n_students=300, n_days=90, class_size=30,
@@ -531,6 +605,47 @@ def main():
     )
 
     tail_probabilities_class_counts(base_params, seeds=range(1, 51), thresholds=(10, 20, 30))
+
+    # --- Sensitivity / robustness (OFAT) ---
+    seeds = range(1, 51)
+
+    # risk_sigma -> concentration
+    rows_sigma = sweep_one_param(base_params, "risk_sigma", values=[1.0, 1.2, 1.4, 1.6, 1.8, 2.0], seeds=seeds)
+    plot_sweep(
+        rows_sigma,
+        y_key="top5_mean", yerr_key="top5_sd",
+        title="Sensitivity: Concentration vs Risk dispersion",
+        xlabel="Risk dispersion (risk_sigma)",
+        ylabel="Top 5% share of incidents",
+        out_png="fig3_sweep_risk_sigma_top5.png",
+        out_pdf="fig3_sweep_risk_sigma_top5.pdf"
+    )
+
+    # nb_k -> burstiness (Var/Mean)
+    rows_k = sweep_one_param(base_params, "nb_k", values=[0.2, 0.3, 0.5, 0.8, 1.0, 1.5], seeds=seeds)
+    plot_sweep(
+        rows_k,
+        y_key="varmean_mean", yerr_key="varmean_sd",
+        title="Sensitivity: Overdispersion vs Burstiness",
+        xlabel="Burstiness (nb_k)",
+        ylabel="Var/Mean of class-period counts",
+        out_png="fig4_sweep_nb_k_varmean.png",
+        out_pdf="fig4_sweep_nb_k_varmean.pdf"
+    )
+
+
+    # inc_base_rate -> level (class_mean)
+    rows_rate = sweep_one_param(base_params, "inc_base_rate", values=[0.12, 0.18, 0.24, 0.30, 0.36], seeds=seeds)
+    plot_sweep(
+        rows_rate,
+        y_key="class_mean_mean", yerr_key="class_mean_sd",
+        title="Sensitivity: Incident level vs Baseline incident rate",
+        xlabel="Baseline incident rate (inc_base_rate)",
+        ylabel="Mean incidents per class-period",
+        out_png="fig5_sweep_inc_base_rate_level.png",
+        out_pdf="fig5_sweep_inc_base_rate_level.pdf"
+    )
+
 
 if __name__ == "__main__":
     main()
